@@ -1,4 +1,41 @@
 from socket import *
+import random
+
+class Jogador:
+
+    def __init__(self, serverSocket, k):
+        self.mao = []
+        self.connectionSocket, self.addr = serverSocket.accept()
+        self.id = k
+        self.connectionSocket.send(str(self.id).encode('utf-8'))
+
+def recebeCarta(mao, k = 1):
+    for i in range(k):
+        ind = random.randint(0,len(baralho)-1)
+        valor = baralho.pop(ind)
+        mao.append(valor)
+    return
+
+def printarMao(mao):
+    print(mao)
+    return
+
+def printarMaoJogadores(jogadores):
+    for i in range(len(jogadores)):
+        printarMao(jogadores[i].mao)
+
+def iniciaMaoJogadores(jogadores):
+    for i in range(len(jogadores)):
+        recebeCarta(jogadores[i].mao, 3)
+
+
+def daCarta(jogadores):
+    for i in range(len(jogadores)):
+        recebeCarta(jogadores[i].mao)
+
+def fechandoSocket(jogadores):
+    for i in range(len(jogadores)):
+        jogadores[i].connectionSocket.close()
 
 #numero de porta na qual o servidor estara esperando conexoes
 serverPort = 12000
@@ -13,25 +50,55 @@ serverSocket.bind(('', serverPort))
 #habilitar socket para aceitar conexoes. o argumento 1 indica que ate
 #uma conexao sera deixada em espera, caso receba multiplas conexoes
 #simultanes
-serverSocket.listen(1)
+serverSocket.listen(4)
 
 print("O servidor esta pronto para receber conexoes: ")
 
+baralho = []
+naipes = ['espadas' , 'paus', 'ouro', 'copas']
+cartas = ['as', 'dois', 'tres', 'quatro', 'cinco', 'seis', 'sete', 'oito', 'nove', 'dez', 'valete', 'dama', 'rei']
+for naipe in range(4):
+    for carta in range(13):
+        baralho.append({cartas[carta]+' de '+ naipes[naipe] : naipe*13+carta})
+
+mao1 = mao2 = mao3 = mao4 = []
+
+
 while (True):
     #aguardar nova conexao
-    print("Aguardando conexao...")
-    connectionSocket, addr = serverSocket.accept()
-    print("Nova conexao recebida!")
+    print("Aguardando jogador1...")
+    j1 = Jogador(serverSocket, 1)
+
+    print("Aguardando jogador2...")
+    j2 = Jogador(serverSocket, 2)
+
+    print("Aguardando jogador3...")
+    j3 = Jogador(serverSocket, 3)
+
+    print("Aguardando jogador4...")
+    j4 = Jogador(serverSocket, 4)
+
+    jogadores = [j1, j2, j3, j4]
+    print("Todos Jogadores estão prontos!")
+    #iniciando a mao de todos jogadores
+    iniciaMaoJogadores(jogadores)
+
+    #printando mao dos jogadores para cada jogador
+    printarMaoJogadores(jogadores)
 
     #recepcao de dados
-    print("Aguardando dados...")
-    sentence = connectionSocket.recv(1024)
+    '''
+    sentence = connectionSocket1.recv(1024)
     #processamento
     print("Dado recebido do cliente")
     capitalizedSentence = sentence.decode('utf-8').upper()
     #envio
     print("Realizando envio...")
-    connectionSocket.send(capitalizedSentence.encode('utf-8'))
-    #fechamento
+    connectionSocket1.send(capitalizedSentence.encode('utf-8'))
+    connectionSocket2.send(capitalizedSentence.encode('utf-8'))
+    connectionSocket3.send(capitalizedSentence.encode('utf-8'))
+    connectionSocket4.send(capitalizedSentence.encode('utf-8'))
+    '''
+    #fechamento de todos sockets
     print("Fechando socket...")
-    connectionSocket.close()
+    fechandoSocket(jogadores)
