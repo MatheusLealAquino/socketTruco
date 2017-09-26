@@ -22,7 +22,8 @@ def printarMao(mao):
 
 def printarMaoJogadores(jogadores):
     for i in range(len(jogadores)):
-        printarMao(jogadores[i].mao)
+        mao = "\nCartas do jogador "+str((i+1))+": "+str(jogadores[i].mao)
+        jogadores[i].connectionSocket.send(mao.encode('utf-8'))
 
 def iniciaMaoJogadores(jogadores):
     for i in range(len(jogadores)):
@@ -41,7 +42,7 @@ def receberDados(jogador):
     return jogador.connectionSocket.recv(1024)
 
 #numero de porta na qual o servidor estara esperando conexoes
-serverPort = 12000
+serverPort = 12001
 
 #criar o socket. AF_INET e SOCK_STREAM indicam TCP
 serverSocket = socket(AF_INET, SOCK_STREAM)
@@ -65,6 +66,7 @@ for naipe in range(4):
         baralho.append({cartas[carta]+' de '+ naipes[naipe] : naipe*13+carta})
 
 mao1 = mao2 = mao3 = mao4 = []
+valorMao1 = valorMao2 = valorMao3 = valorMao4 = 1 
 
 
 while (True):

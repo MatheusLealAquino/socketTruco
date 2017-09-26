@@ -1,7 +1,7 @@
 from socket import *
 
 serverName = 'localhost'
-serverPort = 12000
+serverPort = 12001
 
 #criacao do socket
 clienteSocket = socket(AF_INET, SOCK_STREAM)
@@ -17,6 +17,10 @@ if(id.decode('utf-8') == '1'):
 	clienteSocket.send(sentence.encode('utf-8'))
 
 #recepcao
+mao = clienteSocket.recv(1024)
+modifiedSentence = mao.decode('utf-8')
+print("From Server: ", modifiedSentence)
+
 retorno = clienteSocket.recv(1024)
 modifiedSentence = retorno.decode('utf-8')
 print("From Server: ", modifiedSentence)
