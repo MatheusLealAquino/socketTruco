@@ -37,6 +37,9 @@ def fechandoSocket(jogadores):
     for i in range(len(jogadores)):
         jogadores[i].connectionSocket.close()
 
+def receberDados(jogador):
+    return jogador.connectionSocket.recv(1024)
+
 #numero de porta na qual o servidor estara esperando conexoes
 serverPort = 12000
 
@@ -87,18 +90,17 @@ while (True):
     printarMaoJogadores(jogadores)
 
     #recepcao de dados
-    '''
-    sentence = connectionSocket1.recv(1024)
+    sentence = receberDados(j1); #connectionSocket1.recv(1024)
     #processamento
     print("Dado recebido do cliente")
     capitalizedSentence = sentence.decode('utf-8').upper()
     #envio
     print("Realizando envio...")
-    connectionSocket1.send(capitalizedSentence.encode('utf-8'))
-    connectionSocket2.send(capitalizedSentence.encode('utf-8'))
-    connectionSocket3.send(capitalizedSentence.encode('utf-8'))
-    connectionSocket4.send(capitalizedSentence.encode('utf-8'))
-    '''
+    j1.connectionSocket.send(capitalizedSentence.encode('utf-8'))
+    j2.connectionSocket.send(capitalizedSentence.encode('utf-8'))
+    j3.connectionSocket.send(capitalizedSentence.encode('utf-8'))
+    j4.connectionSocket.send(capitalizedSentence.encode('utf-8'))
+    
     #fechamento de todos sockets
     print("Fechando socket...")
     fechandoSocket(jogadores)
