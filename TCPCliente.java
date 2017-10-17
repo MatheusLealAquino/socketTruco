@@ -27,6 +27,7 @@ public class TCPCliente {
 		do {
 			List<Carta> mao = new ArrayList<>();
 			recebeCarta(mao, inFromServer, 3);
+			PlacarMao placarMao = new PlacarMao();
 			for (int k = 0; k < 3; k++) {
 				printaCartas(mao, "mao");
 				Carta vira = recebeCarta(inFromServer);
@@ -38,14 +39,18 @@ public class TCPCliente {
 				for (int i = 0; i < k; i++) {
 					turnoRodada(teclado, outToServer, inFromServer, mao, mesa, i);
 				}
+				recebePlacarMao(inFromServer, placarMao);
+				if(placarMao.continua == 0){
+					break;
+				}
 			}
 			recebeFim(inFromServer, placar);
 		} while (!placar.fimDeJogo);
 
 		if (placar.vencedor == true) {
-			System.out.println("Você venceu :D");
+			System.out.println("Vocï¿½ venceu :D");
 		} else {
-			System.out.println("Você perdeu =(");
+			System.out.println("Vocï¿½ perdeu =(");
 		}
 
 		teclado.close();
@@ -57,7 +62,7 @@ public class TCPCliente {
 	protected static void turnoRodada(Scanner teclado, DataOutputStream outToServer, BufferedReader inFromServer,
 			List<Carta> mao, List<Carta> mesa, int i) throws IOException {
 		if (id == i) {
-			System.out.println("Escolha carta pelo índice");
+			System.out.println("Escolha carta pelo ï¿½ndice");
 			printaCartas(mao, "mao");
 			for (int j = 0; j < mao.size(); j++) {
 				System.out.print("carta" + (j + 1) + " ");
@@ -133,14 +138,26 @@ public class TCPCliente {
 		if (pontuacao02 >= 12 || pontuacao13 >= 12) {
 			placar.fimDeJogo = true;
 		}
-		if (id == 0 || id == 2) {
-			placar.pontosTime = pontuacao02;
-			placar.pontosAdversario = pontuacao13;
-		} else if (id == 1 || id == 3) {
-			placar.pontosTime = pontuacao13;
-			placar.pontosAdversario = pontuacao02;
-		}
-		if (placar.pontosTime > placar.pontosAdversario)
+		placar.time1 = pontuacao02;
+		placar.time2 = pontuacao13;
+		System.out.println("Placar Jogo");
+		if ((id == 0 || id == 2)&& (placar.time1 > placar.time2)) {
+			System.out.println("seu time: "+placar.time1);
+			System.out.println("pontos time 0 e 2: "+placar.time1);
 			placar.vencedor = true;
+		} else {
+			System.out.println("seu time: "+placar.time2);
+			System.out.println("pontos time 1 e 3: "+placar.time2);
+			placar.vencedor = true;
+		}
+	}
+	
+	private static void recebePlacarMao(BufferedReader inFromServer, PlacarMao placarMao) throws IOException {
+		placarMao.time1 += inFromServer.read();
+		placarMao.time2 += inFromServer.read();
+		placarMao.continua = inFromServer.read();
+		System.out.println("Placar Mao");
+		System.out.println("pontos time 0 e 2: "+placarMao.time1);
+		System.out.println("pontos time 1 e 3: "+placarMao.time2);
 	}
 }

@@ -2,7 +2,7 @@
 public class Placar {
 	public boolean fimDeJogo = false;
 	public boolean vencedor = false;
-	public int pontosTime = 0;
-	public int pontosAdversario = 0;
-	public int pontoMao = 1;
+	public int time1 = 0;
+	public int time2 = 0;
+	public int valorMao = 1;
 }
