@@ -24,7 +24,7 @@ public class TCPServidor {
 			//array de mesas (array de cartas)
 			List<List<Carta>> mesas = new ArrayList<>();
 			testaBaralhoStatic();
-			if(baralho.cartas.isEmpty()) baralho = new Baralho();
+			if(baralho.cartas.size() < 13) baralho = new Baralho();
 			enviaCarta(jogadores, 3);
 
 			for (int k = 0; k < 3; k++) {
@@ -68,7 +68,7 @@ public class TCPServidor {
 	private static void calculaPontos(Placar placar, List<List<Carta>> mesa, Carta vira) {
 		//calcular placar e mudar no placar
 		System.out.println("PONTOS");
-		placar.pontosTime += 4;
+		placar.pontosTime += 1;
 	}
 
 	private static Carta recebeCarta(Jogador jogador) throws IOException {
