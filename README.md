@@ -2,9 +2,13 @@
 
 Trabalho 1 | Redes I
 
-Python 3.x
+Java 1.8
 
 https://sites.google.com/site/diegogpassos/disciplinas/redesisi_2017_2/especificacao-do-trabalho
 
-To aqui! ass Ze Mau
+Matheus Leal
+Caio Lima
+Eduardo Lagoeiro
+José Maurício
+Gabriel Guedine
 
