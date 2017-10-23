@@ -9,23 +9,25 @@ import java.util.Comparator;
 import java.util.List;
 
 public class TCPServidor {
-	private static Carta vira;
-	private static Baralho baralho = new Baralho();
-	private static final Comparator<Carta> CARTAS_COMPARATOR = new Comparator<Carta>() {
-		public int compare(Carta c1, Carta c2) {
-			int manilhaValor = vira.getValor() + 1;
-			manilhaValor = manilhaValor % 13;
-			if (c1.getValor() == c2.getValor()) {
-				if (c1.getValor() == manilhaValor)return c1.getNaipe() - c2.getNaipe();
-				return 0;
-			}
-			if (c1.getValor() == manilhaValor)return 1;
-			if (c2.getValor() == manilhaValor)return -1;
-			return c1.getValor() - c2.getValor();
-		}
-	};
+	private static Baralho baralho;
+	
+	private static int valorMao; //quanto vale a mão
+	private static Carta vira; //vira da rodada
+	private static List<Carta> mesa; //lista de cartas da mesa
 
-	public static void main(String[] args) throws IOException {
+	private static int lastTruco; //guarda ultimo time que pediu truco
+	private static boolean trucoNegado; //guarda se algum time correu do truco
+	
+	//arrays para saber pontos na rodada e pontos totais
+	private static int timePontosTotal[] = new int[2];
+	private static int timePontosRodada[] = new int[2];
+
+	//arrays para ter histórico das rodadas em uma mão
+	private static boolean empates[] = new boolean[3];
+	private static int vencedoresRodada[] = new int[3];
+
+	public static void main(String[] args) throws IOException, InterruptedException {
+
 		int porta = Porta.NUM;
 		ServerSocket servidor = new ServerSocket(porta);
 		System.out.println("Porta " + porta + " aberta!");
@@ -33,220 +35,314 @@ public class TCPServidor {
 		Jogador[] jogadores = new Jogador[4];
 
 		conecta(servidor, jogadores);
-
-		Placar placar = new Placar();
-
+		
+		timePontosTotal[0] = 0;
+		timePontosTotal[1] = 0;
+		int numMao = 1;
 		do {
-			List<List<Carta>> mesas = new ArrayList<>();
-			testaBaralhoStatic();
+			System.out.println("mão nº" + numMao);
+			//inicia todos paramentros para nova mão
+			empates = new boolean[3];
+			empates[0] = empates[1] = empates[2] = false;
+			vencedoresRodada = new int[3];
+			vencedoresRodada[0] = vencedoresRodada[1] = vencedoresRodada[2] = 2;
+			timePontosRodada[0] = 0;
+			timePontosRodada[1] = 0;
+			valorMao = 1;
+			lastTruco = -1;
+			trucoNegado = false;
 			baralho = new Baralho();
-			enviaCarta(jogadores, 3);
+
+			for (int i = 0; i < jogadores.length; i++) {
+				for (int j = 0; j < 3; j++) {
+					Carta carta = baralho.tiraCarta();
+					
+					//envia mao de jogadores
+					(new MensagemServidor(jogadores[i].getId(), 7, timePontosRodada[0],
+							timePontosRodada[1], valorMao, 0, carta.getNaipe(), carta.getValor(), timePontosTotal[0],
+							timePontosTotal[1])).envia(jogadores);
+				}
+			}
 
 			for (int k = 0; k < 3; k++) {
-				PlacarMao placarMao = new PlacarMao();
-				System.out.println("vira: ");
+				System.out.println("rodada nº" + (k+1));
+				mesa = new ArrayList<>();
 				vira = baralho.tiraCarta();
-				enviaCarta(jogadores, vira);
-				List<Carta> mesa = new ArrayList<>();
-				mesas.add(mesa);
+				//mensagem de vira
+				(new MensagemServidor(4, 6, timePontosRodada[0], timePontosRodada[1], valorMao, 0, vira.getNaipe(),
+						vira.getValor(), timePontosTotal[0], timePontosTotal[1])).envia(jogadores);
+
 				for (int j = k; j < jogadores.length; j++) {
-					turnoRodada(jogadores, mesa, j);
+					if (trucoNegado)
+						break;
+					rodada(jogadores, j);
 				}
 				for (int j = 0; j < k; j++) {
-					turnoRodada(jogadores, mesa, j);
+					if (trucoNegado)
+						break;
+					rodada(jogadores, j);
 				}
-				calculaPontos(placarMao, mesa);
-				enviaPlacarMao(jogadores, placarMao);
-				if (placarMao.continua == 0) {
-					if(placarMao.time1 != placarMao.time2){
-						if(placarMao.time1>placarMao.time2){
-							placar.time1 += placar.valorMao;
-						}
-					}
+				if (trucoNegado)
+					break;
+				updateRodada(k);
+				//mensagem de fim de rodada
+				(new MensagemServidor(8, timePontosRodada[0], timePontosRodada[1], valorMao, timePontosTotal[0],
+						timePontosTotal[1])).envia(jogadores);
+				//caso em que a primeira rodada deu empate e a segunda foi vencida
+				if (k == 1 && empates[0] == true && empates[1] == false) {
+					break;
+				}
+				//caso que mesmo time venceu duas jogadas seguidas
+				if (vencedoresRodada[0] == vencedoresRodada[1] && vencedoresRodada[0] != 2) {
 					break;
 				}
 			}
-			testaBaralhoStatic();
-			enviaPlacar(jogadores, placar);
-		} while (!placar.fimDeJogo);
-
+			//se correram do truco o caso já foi tratado na função rodada
+			if (!trucoNegado) {
+				//só entra se não houver empate triplo
+				if (!(empates[0] == empates[1] && empates[1] == empates[2] && empates[0] == true)) {
+					if (timePontosRodada[0] != timePontosRodada[1]) {
+						//caso em que algum time tem mais pontos que o outro
+						if (timePontosRodada[0] > timePontosRodada[1])
+							timePontosTotal[0] += valorMao;
+						else
+							timePontosTotal[1] += valorMao;
+					} else {
+						//caso em que a segunda rodada foi empate, mas a primeira e a terceira não
+						if (timePontosRodada[0] == 1) {
+							timePontosRodada[vencedoresRodada[0]] += valorMao;
+						}
+					}
+				}
+			}
+			//mensagem de fim de mão
+			(new MensagemServidor(9, timePontosRodada[0], timePontosRodada[1], valorMao, timePontosTotal[0],
+					timePontosTotal[1])).envia(jogadores);
+			numMao++;
+		} while (timePontosTotal[0] < 12 && timePontosTotal[1] < 12);
+		
+		(new MensagemServidor(11, timePontosRodada[0], timePontosRodada[1], valorMao, timePontosTotal[0],
+				timePontosTotal[1])).envia(jogadores);
 		fecha(servidor, jogadores);
 		servidor.close();
 	}
 
-	protected static void turnoRodada(Jogador[] jogadores, List<Carta> mesa,
-			int j) throws IOException {
-		Carta cartarecebida = recebeCarta(jogadores[j]);
-		mesa.add(cartarecebida);
-		for (int i = 0; i < jogadores.length; i++) {
-			if (i != j) {
-				if (cartarecebida.isPraCima()) {
-					enviaCarta(jogadores[i], cartarecebida);
-				} else {
-					enviaCarta(jogadores[i], new Carta(Naipe.PRA_BAIXO,
-							ValorCarta.PRA_BAIXO));
-				}
-			}
+	//função que auxiliada ao sort de cartas trata os casos possíveis para ver qual carta venceu a rodada
+	//se houve empate e faz update nos arrays que carregam o histórico de empates e times vencedores
+	private static void updateRodada(int n) {
+		if (mesa == null) {
+			System.out.println("mesa vazia");
+			empates[n] = true;
+			return;
 		}
-		printaCartas(mesa, "mesa");
-	}
-
-	private static void calculaPontos(PlacarMao placarMao, List<Carta> mesa) {
 		Collections.sort(mesa, CARTAS_COMPARATOR);
-		System.out.println("PONTOS RODADA");
-		boolean empate = true;
-		int manilha = vira.getValor()+1;
-		manilha = manilha%13;
-		int ind = mesa.size()-1;
-		System.out.println(manilha);
-		for (Carta carta : mesa) {
-			if(carta.getValor() == manilha){
-				empate = false;
+		Carta ultima = mesa.get(mesa.size() - 1);
+		if (mesa.size() == 1) {
+			System.out.println("mesa de só uma pessoa");
+			timePontosRodada[ultima.getIdJogador() % 2]++;
+			vencedoresRodada[n] = ultima.getIdJogador() % 2;
+			return;
+		}
+		Carta penultima = mesa.get(mesa.size() - 2);
+		if (ultima.getIdJogador() % 2 == penultima.getIdJogador() % 2) {
+			if (mesa.size() > 2) {
+				int compare = CARTAS_COMPARATOR.compare(ultima, mesa.get(mesa.size() - 2));
+				if (compare != 0) {
+					timePontosRodada[ultima.getIdJogador() % 2]++;
+					vencedoresRodada[n] = ultima.getIdJogador() % 2;
+					return;
+				}
+			} else {
+				timePontosRodada[ultima.getIdJogador() % 2]++;
+				vencedoresRodada[n] = ultima.getIdJogador() % 2;
+				return;
+			}
+		} else {
+			if (CARTAS_COMPARATOR.compare(ultima, penultima) != 0) {
+				timePontosRodada[ultima.getIdJogador() % 2]++;
+				vencedoresRodada[n] = ultima.getIdJogador() % 2;
+				return;
 			}
 		}
-		if(empate){
-			if(mesa.get(ind).getValor() == mesa.get(ind-1).getValor())return;
+		empates[n] = true;
+	}
+
+	private static void rodada(Jogador[] jogadores, int j) throws IOException {
+		(new MensagemServidor(j, 0, timePontosRodada[0], timePontosRodada[1], valorMao, 0, 0, 0, timePontosTotal[0],
+				timePontosTotal[1])).envia(jogadores);
+		MensagemCliente msgCliente = recebeMsg(jogadores[j]);
+		Carta carta;
+		switch (msgCliente.getJogada()) {
+		case 0:
+			// carta pra cima
+			carta = msgCliente.getCarta();
+			carta.setIdJogador(j);
+			mesa.add(carta);
+			(new MensagemServidor(j, 1, timePontosRodada[0], timePontosRodada[1], valorMao, 0, carta.getNaipe(),
+					carta.getValor(), timePontosTotal[0], timePontosTotal[1])).envia(jogadores);
+			break;
+		case 1:
+			// carta pra baixo
+			carta = msgCliente.getCarta();
+			carta.setIdJogador(j);
+			(new MensagemServidor(j, 1, timePontosRodada[0], timePontosRodada[1], valorMao, 1, carta.getNaipe(),
+					carta.getValor(), timePontosTotal[0], timePontosTotal[1])).envia(jogadores);
+			break;
+		case 2:
+			// pedido de truco
+			if (valorMao == 12 || lastTruco % 2 == j % 2) {
+				//caso pedido de truco for inválido chamada recursiva com requisição de jogada novamente
+				rodada(jogadores, j);
+			} else {
+				lastTruco = j;
+				trataPedidoTruco(jogadores, j);
+			}
+			break;
 		}
-		int idVencedor = mesa.get(mesa.size() - 1).getIdJogador();
-		if (idVencedor == 0 || idVencedor == 2) {
-			System.out.println("RODADA VENCIDA PELA EQUIPE JOGADOR 0 e 2");
-			placarMao.time1++;
-		} else {
-			System.out.println("RODADA VENCIDA PELA EQUIPE JOGADOR 1 e 3");
-			placarMao.time2++;
+
+	}
+
+	private static void rodadaPosTruco(Jogador[] jogadores, int j) throws IOException {
+		(new MensagemServidor(j, 10, timePontosRodada[0], timePontosRodada[1], valorMao, 0, 0, 0, timePontosTotal[0],
+				timePontosTotal[1])).envia(jogadores);
+		MensagemCliente msgCliente = recebeMsg(jogadores[j]);
+		Carta carta;
+		switch (msgCliente.getJogada()) {
+		case 0:
+			// carta pra cima
+			carta = msgCliente.getCarta();
+			carta.setIdJogador(j);
+			mesa.add(carta);
+			(new MensagemServidor(j, 1, timePontosRodada[0], timePontosRodada[1], valorMao, 0, carta.getNaipe(),
+					carta.getValor(), timePontosTotal[0], timePontosTotal[1])).envia(jogadores);
+			break;
+		case 1:
+			// carta pra baixo
+			carta = msgCliente.getCarta();
+			carta.setIdJogador(j);
+			(new MensagemServidor(j, 1, timePontosRodada[0], timePontosRodada[1], valorMao, 1, carta.getNaipe(),
+					carta.getValor(), timePontosTotal[0], timePontosTotal[1])).envia(jogadores);
+			break;
 		}
 	}
 
-	private static Carta recebeCarta(Jogador jogador) throws IOException {
-		int naipe = jogador.inFromClient.read();
-		int valorCarta = jogador.inFromClient.read();
-		int cima = jogador.inFromClient.read();
-		Carta carta = new Carta(naipe, valorCarta);
-		if (cima == 0) {
-			carta.praBaixo();
+	protected static void trataPedidoTruco(Jogador[] jogadores, int j) throws IOException {
+		(new MensagemServidor(j, 2, timePontosRodada[0], timePontosRodada[1], valorMao, 0, 0, 0, timePontosTotal[0],
+				timePontosTotal[1])).envia(jogadores);
+		int jogada1 = recebeMsg(jogadores[(j + 1) % 2]).getJogada();
+		//usada para fazer a resposta do segundo jogador da dupla vir depois
+		jogadores[(j + 1) % 2 + 2].getOutToClient().write(1);
+		int jogada2 = recebeMsg(jogadores[(j + 1) % 2 + 2]).getJogada();
+		if (jogada1 == 5 || jogada2 == 5) {
+			// correram
+			(new MensagemServidor((j + 1) % 2, 5, timePontosRodada[0], timePontosRodada[1], valorMao, 0, 0, 0,
+					timePontosTotal[0], timePontosTotal[1])).envia(jogadores);
+			trucoNegado = true;
+			timePontosTotal[lastTruco % 2] += valorMao;
+		} else if (jogada1 == 3 || jogada2 == 3) {
+			// aceitaram
+			incrementaValorMao();
+			(new MensagemServidor((j + 1) % 2, 3, timePontosRodada[0], timePontosRodada[1], valorMao, 0, 0, 0,
+					timePontosTotal[0], timePontosTotal[1])).envia(jogadores);
+			rodadaPosTruco(jogadores, j);
+
+		} else if (jogada1 == 4 && jogada2 == 4) {
+			// retrucaram
+			incrementaValorMao();
+			(new MensagemServidor((j + 1) % 2, 4, timePontosRodada[0], timePontosRodada[1], valorMao, 0, 0, 0,
+					timePontosTotal[0], timePontosTotal[1])).envia(jogadores);
+			if (valorMao != 12) {
+				jogada1 = recebeMsg(jogadores[j % 2]).getJogada();
+				jogadores[j % 2 + 2].getOutToClient().write(1);
+				jogada2 = recebeMsg(jogadores[j % 2 + 2]).getJogada();
+
+				if (jogada1 == 3 && jogada2 == 3) {
+					// aceitaram
+					incrementaValorMao();
+					(new MensagemServidor(j % 2, 3, timePontosRodada[0], timePontosRodada[1], valorMao, 0, 0, 0,
+							timePontosTotal[0], timePontosTotal[1])).envia(jogadores);
+					rodadaPosTruco(jogadores, j);
+				} else {
+					// fugiram
+					(new MensagemServidor(j % 2, 5, timePontosRodada[0], timePontosRodada[1], valorMao, 0, 0, 0,
+							timePontosTotal[0], timePontosTotal[1])).envia(jogadores);
+					trucoNegado = true;
+					timePontosTotal[(lastTruco+1) % 2] += valorMao;
+				}
+			} else {
+				// nao pode retrucar então faz chamada recursiva para enviar a msg de requisição de jogada no cliente
+				trataPedidoTruco(jogadores, j);
+			}
 		}
-		return carta;
 	}
 
-	private static void fecha(ServerSocket servidor, Jogador[] jogadores)
-			throws IOException {
-		for (int i = 0; i < jogadores.length; i++) {
-			jogadores[i].outToClient.close();
-			jogadores[i].socket.close();
+	//função para aumentar valor da mao
+	private static void incrementaValorMao() {
+		switch (valorMao) {
+		case 1:
+			valorMao = 3;
+			break;
+		case 3:
+			valorMao = 6;
+			break;
+		case 6:
+			valorMao = 9;
+			break;
+		case 9:
+			valorMao = 12;
+			break;
 		}
 	}
 
-	private static void conecta(ServerSocket servidor, Jogador[] jogadores)
-			throws IOException {
+	// recebe msg do cliente segundo o protocolo de msg definindo em MensagemCliente.java
+	private static MensagemCliente recebeMsg(Jogador jogador) throws IOException {
+		int idJogador = jogador.getInFromClient().read();
+		int jogada = jogador.getInFromClient().read();
+		int naipeCarta = jogador.getInFromClient().read();
+		int valorCarta = jogador.getInFromClient().read();
+
+		MensagemCliente mc = new MensagemCliente(idJogador, jogada, naipeCarta, valorCarta);
+		System.out.println(mc);
+		return mc;
+	}
+
+	//funções que criam uma instância de jogador e o conectam
+	private static void conecta(ServerSocket servidor, Jogador[] jogadores) throws IOException {
 		for (int i = 0; i < jogadores.length; i++) {
 			jogadores[i] = new Jogador(servidor.accept());
-			conecta(servidor, jogadores[i], i);
+			jogadores[i].setId(i);
+			conecta(servidor, jogadores[i]);
 		}
 	}
-
-	private static void conecta(ServerSocket servidor, Jogador jogador, int i)
-			throws IOException {
-		System.out.println("Aguardando conexÃ£o do cliente " + i + "...");
-		jogador.setOutToClient(new DataOutputStream(jogador.socket
-				.getOutputStream()));
-		jogador.setInFromClient(new BufferedReader(new InputStreamReader(
-				jogador.socket.getInputStream())));
-		System.out.println("Nova conexao com o cliente " + i + " "
-				+ jogador.socket.getInetAddress().getHostAddress());
-		jogador.outToClient.write(i);
+	
+	private static void conecta(ServerSocket servidor, Jogador jogador) throws IOException {
+		jogador.setOutToClient(new DataOutputStream(jogador.getSocket().getOutputStream()));
+		jogador.setInFromClient(new BufferedReader(new InputStreamReader(jogador.getSocket().getInputStream())));
+		System.out.println("Nova conexao com o cliente " + jogador.getId() + " "
+				+ jogador.getSocket().getInetAddress().getHostAddress());
+		jogador.getOutToClient().write(jogador.getId());
 	}
 
-	private static void enviaCarta(Jogador[] jogadores, int vezes)
-			throws IOException {
-		for (int j = 0; j < vezes; j++) {
-			enviaCarta(jogadores);
-		}
-	}
-
-	private static void enviaCarta(Jogador[] jogadores) throws IOException {
+	private static void fecha(ServerSocket servidor, Jogador[] jogadores) throws IOException {
 		for (int i = 0; i < jogadores.length; i++) {
-			enviaCarta(jogadores[i]);
+			jogadores[i].getOutToClient().close();
+			jogadores[i].getSocket().close();
 		}
 	}
 
-	private static void enviaCarta(Jogador[] jogadores, Carta carta)
-			throws IOException {
-		for (int j = 0; j < jogadores.length; j++) {
-			enviaCarta(jogadores[j], carta);
+	//comparator de cartas, para arrumá-las segundo o vira da rodada
+	private static final Comparator<Carta> CARTAS_COMPARATOR = new Comparator<Carta>() {
+		public int compare(Carta c1, Carta c2) {
+			int valor = vira.getValor();
+			int valorManilha = (valor + 1) % 13;
+			if (c1.getValor() == valorManilha && c2.getValor() == valorManilha) {
+				return c1.getNaipe() - c2.getNaipe();
+			} else if (c1.getValor() == valorManilha) {
+				return 1;
+			} else if (c2.getValor() == valorManilha) {
+				return -1;
+			} else
+				return c1.getValor() - c2.getValor();
 		}
-	}
-
-	private static void enviaCarta(Jogador jogador, Carta carta)
-			throws IOException {
-		jogador.outToClient.write(carta.getNaipe());
-		jogador.outToClient.write(carta.getValor());
-	}
-
-	private static void enviaCarta(Jogador jogador) throws IOException {
-		Carta c = baralho.tiraCarta();
-		jogador.outToClient.write(c.getNaipe());
-		jogador.outToClient.write(c.getValor());
-	}
-
-	private static void enviaPlacar(Jogador jogador, Placar placar)
-			throws IOException {
-		int pontuacao02 = placar.time1;
-		int pontuacao13 = placar.time2;
-
-		jogador.outToClient.write(pontuacao02);
-		jogador.outToClient.write(pontuacao13);
-	}
-
-	private static void enviaPlacar(Jogador[] jogadores, Placar placar)
-			throws IOException {
-		for (int i = 0; i < jogadores.length; i++) {
-			enviaPlacar(jogadores[i], placar);
-		}
-	}
-
-	private static void enviaPlacarMao(Jogador jogador, PlacarMao placarMao)
-			throws IOException {
-		int pontuacao02 = placarMao.time1;
-		int pontuacao13 = placarMao.time2;
-		int continua = 1;
-		if (pontuacao02 == 2 || pontuacao13 == 2) {
-			continua = 0;
-		}
-		jogador.outToClient.write(pontuacao02);
-		jogador.outToClient.write(pontuacao13);
-		jogador.outToClient.write(continua);
-	}
-
-	private static void enviaPlacarMao(Jogador[] jogadores, PlacarMao placarMao)
-			throws IOException {
-		for (int i = 0; i < jogadores.length; i++) {
-			enviaPlacarMao(jogadores[i], placarMao);
-		}
-	}
-
-	private static void testaBaralhoStatic() {
-		System.out.print("tamanho baralho:" + baralho.cartas.size());
-		int naipe = 999;
-		for (Carta carta : baralho.cartas) {
-			if (naipe != carta.getNaipe()) {
-				naipe = carta.getNaipe();
-				System.out.println();
-			}
-			System.out.print(carta + ", ");
-		}
-	}
-
-	private static void printaCartas(List<Carta> cartas, String string) {
-		if (cartas.isEmpty())
-			return;
-		System.out.print(string + ": [");
-		for (int i = 0; i < cartas.size() - 1; i++) {
-			System.out.print(cartas.get(i) + ", ");
-		}
-		if (!cartas.isEmpty()) {
-			System.out.print(cartas.get(cartas.size() - 1) + "]");
-		}
-		System.out.println();
-	}
-
+	};
 }

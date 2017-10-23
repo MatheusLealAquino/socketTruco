@@ -9,114 +9,234 @@ import java.util.List;
 import java.util.Scanner;
 
 public class TCPCliente {
+
+	private static int porta = Porta.NUM;
 	private static int id = 5;
+	private static int idSeuTime;
+	private static Scanner teclado = new Scanner(System.in);
+	private static DataOutputStream outToServer;
+	private static BufferedReader inFromServer;
+	private static Carta vira;
+	private static int idTruco = -1;
+	private static int idTimeTruco = -1;
+
+	// protocolo - mensagem servidor
+	
+	//id jogador ou id time que é requerido que se faça algo ou que está fazendo
+	private static int idJogador;
+	//0 vez de jogar, 1 jogaram uma carta, 2 trucaram, 3 aceitaram, 4 retrucaram,
+	//5 correram, 6 vira, 7 recebe, 8 rodada encerrada, 9 mão encerrada,
+	//10 jogar carta, 11 encerra o jogo
+	private static int jogada;
+	// pontuação do time 1 na rodada
+	private static int time1PontosRodada;
+	// pontuação do time 2 na rodada
+	private static int time2PontosRodada;
+	// valor da mão na rodada
+	private static int valorMao;
+	// 1 true 0 false
+	private static int cartaPraBaixo;
+	// naipe da carta, caso essa esteja passando
+	private static int naipeCarta; 
+	// valor da carta, caso essa esteja passando
+	private static int valorCarta; 
+	// pontuação total do time 1
+	private static int time1PontosTotal; 
+	// pontuação total do time 2
+	private static int time2PontosTotal; 
 
 	public static void main(String[] args) throws UnknownHostException, IOException {
-		int porta = Porta.NUM;
+		
+		//System.out.println("Entrar com ip para conexão");
+		//String ip = teclado.next();
+		//System.out.println("Entrar com porta para conexão");
+		//String porta = teclado.next();
+		
 		Socket clientSocket = new Socket("127.0.0.1", porta);
-		Baralho baralho = new Baralho();
-		Scanner teclado = new Scanner(System.in);
-		DataOutputStream outToServer = new DataOutputStream(clientSocket.getOutputStream());
-		BufferedReader inFromServer = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+		outToServer = new DataOutputStream(clientSocket.getOutputStream());
+		inFromServer = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
 
 		id = inFromServer.read();
-		System.out.println("id: " + id);
+		System.out.println("Seu id: " + (id + 1));
+		idSeuTime = id % 2;
+		System.out.println("Você é do time " + (idSeuTime + 1));
+		List<Carta> mao = new ArrayList<>();
+		List<Carta> mesa = new ArrayList<>();
 
-		Placar placar = new Placar();
+		boolean fim = false;
 
 		do {
-			List<Carta> mao = new ArrayList<>();
-			recebeCarta(mao, inFromServer, 3);
-			PlacarMao placarMao = new PlacarMao();
-			for (int k = 0; k < 3; k++) {
-				printaCartas(mao, "mao");
-				Carta vira = recebeCarta(inFromServer);
-				System.out.println("vira: " + vira);
-				List<Carta> mesa = new ArrayList<>();
-				for (int i = k; i < 4; i++) {
-					turnoRodada(teclado, outToServer, inFromServer, mao, mesa, i);
-				}
-				for (int i = 0; i < k; i++) {
-					turnoRodada(teclado, outToServer, inFromServer, mao, mesa, i);
-				}
-				recebePlacarMao(inFromServer, placarMao);
-				if(placarMao.continua == 0){
-					break;
-				}
-			}
-			recebeFim(inFromServer, placar);
-		} while (!placar.fimDeJogo);
+			recebeMsg();
 
-		if (placar.vencedor == true) {
-			System.out.println("Vocï¿½ venceu :D");
-		} else {
-			System.out.println("Vocï¿½ perdeu =(");
-		}
+			int jogadaEscolhida;
+			
+			//trata jogada segundo protocolo
+			switch (jogada) {
+			case 0:
+				// vez de jogar
+				if (idJogador == id) {
+					System.out.println("é a sua vez de jogar");
+					printaCartas(mao, "mao");
+					printaCartas(mesa, "mesa");
+					do {
+						System.out.println("Jogar carta pra cima(1), carta pra baixo(2), pedir truco(3)");
+						jogadaEscolhida = teclado.nextInt();
+					} while (jogadaEscolhida != 1 && jogadaEscolhida != 2 && jogadaEscolhida != 3);
+					jogadaEscolhida--;
+					int naipeCartaEscolhida = 0;
+					int valorCartaEscolhida = 0;
+					if (jogadaEscolhida != 2) {
+						int indiceEscolhido = -1;
+						do {
+							if(indiceEscolhido != -1)
+								System.out.println("Alerta: você só tem "+mao.size()+" cartas na mão");
+							System.out.println("Escolha sua carta pelo índice 1/2/3");
+							indiceEscolhido = teclado.nextInt();
+						} while (indiceEscolhido > mao.size() && indiceEscolhido < 1);
+						indiceEscolhido--;
+						Carta cartaJogada = mao.remove(indiceEscolhido);
+						naipeCartaEscolhida = cartaJogada.getNaipe();
+						valorCartaEscolhida = cartaJogada.getValor();
+					}
+					//envia mensagem cleinte
+					(new MensagemCliente(id, jogadaEscolhida, naipeCartaEscolhida,
+							valorCartaEscolhida)).envia(outToServer);
+				} else
+					System.out.println("é a vez do jogador " + (idJogador + 1) + " jogar");
+				break;
+			case 1:
+				// jogaram uma carta
+				if (cartaPraBaixo == 0) {
+					Carta carta = new Carta(naipeCarta, valorCarta);
+					carta.setIdJogador(idJogador);
+					mesa.add(carta);
+					System.out.println("Jogador " + (idJogador + 1) + " jogou a carta " + carta);
+				} else
+					System.out.println("Jogador " + (idJogador + 1) + " jogou a carta jogada pra baixo");
+				break;
+			case 2:
+				// trucaram
+				idTruco = idJogador;
+				System.out.println("jogador " + (idJogador + 1) + " trucou!");
+				idTimeTruco = idTruco % 2;
+				if (idSeuTime != idTimeTruco) {
+					do {
+						System.out.println("Aceitar(1), Retrucar(2), Correr(3)");
+						jogadaEscolhida = teclado.nextInt();
+					} while (jogadaEscolhida != 1 && jogadaEscolhida != 2 && jogadaEscolhida != 3);
+					jogadaEscolhida += 2;
+					MensagemCliente mc = new MensagemCliente(id, jogadaEscolhida);
+					System.out.println("aguarde seu parceiro responder");
+					if (id > idSeuTime) {
+						inFromServer.read(); //bloquear para não enviar antes do outro jogador da equipe
+					}
+					mc.envia(outToServer);
+				}
+				break;
+			case 3:
+				// aceitaram trucada
+				System.out.println(
+						"Truco aceito pelo time " + ((idJogador % 2) + 1) + ", mão vale " + valorMao + " pontos");
+				break;
+			case 4:
+				// retrucaram
+				idTruco = idJogador;
+				System.out.println("Time " + ((idJogador % 2) + 1) + " retrucou, mão vale " + valorMao + " pontos");
+				idTimeTruco = idTruco % 2;
+				if (idSeuTime != idTimeTruco) {
+					do {
+						System.out.println("Aceitar(1), Correr(2)");
+						jogadaEscolhida = teclado.nextInt();
+					} while (jogadaEscolhida != 1 && jogadaEscolhida != 2);
+
+					if (jogadaEscolhida == 1)
+						jogadaEscolhida = 3;
+					if (jogadaEscolhida == 2)
+						jogadaEscolhida = 5;
+					
+					MensagemCliente mc = new MensagemCliente(id, jogadaEscolhida);
+					System.out.println("aguarde seu parceiro responder");
+					if (id > idSeuTime) {
+						inFromServer.read(); //bloquear para não enviar antes do outro jogador da equipe
+					}
+					mc.envia(outToServer);
+				}
+				break;
+			case 5:
+				// correram da trucada
+				System.out.println("jogadores do time " + ((idJogador % 2) + 1) + " correram do truco");
+				break;
+			case 6:
+				// vira
+				vira = new Carta(naipeCarta, valorCarta);
+				System.out.println("vira da rodada é o " + vira);
+				break;
+			case 7:
+				// recebe carta
+				if (idJogador == id) {
+					Carta carta  = new Carta(naipeCarta, valorCarta);
+					mao.add(carta);
+					System.out.println("você recebeu a carta "+carta);
+				}
+				break;
+			case 8:
+				// rodada encerrada
+				mesa = new ArrayList<>();
+				System.out.println("fim da rodada");
+				System.out.println("Placar rodada");
+				System.out.println("TIME 1 -" + time1PontosRodada + " X " + time2PontosRodada + "- TIME 2");
+				break;
+			case 9:
+				// mao encerrada
+				mao = new ArrayList<>();
+				System.out.println("fim da mão");
+				System.out.println("==========================");
+				System.out.println("PLACAR TOTAL");
+				System.out.println("TIME 1 -" + time1PontosTotal + " X " + time2PontosTotal + "- TIME 2");
+				break;
+			case 10:
+				// vez de jogar carta após pedir truco
+				if (idJogador == id) {
+					System.out.println("falta jogar uma carta");
+					printaCartas(mao, "mao");
+					printaCartas(mesa, "mesa");
+					do {
+						System.out.println("Jogar carta pra cima(1), carta pra baixo(2)");
+						jogadaEscolhida = teclado.nextInt();
+					} while (jogadaEscolhida != 1 && jogadaEscolhida != 2);
+					jogadaEscolhida--;
+					int naipeCartaEscolhida = 0;
+					int valorCartaEscolhida = 0;
+					int indiceEscolhido = -1;
+					do{
+						if(indiceEscolhido != -1)
+							System.out.println("Alerta: você só tem "+mao.size()+" cartas na mão");
+						System.out.println("Escolha sua carta pelo índice 1/2/3");
+						indiceEscolhido = teclado.nextInt();
+					}while(indiceEscolhido > mao.size() && indiceEscolhido < 1);
+					indiceEscolhido--;
+					
+					Carta cartaJogada = mao.remove(indiceEscolhido);
+					naipeCartaEscolhida = cartaJogada.getNaipe();
+					valorCartaEscolhida = cartaJogada.getValor();
+					MensagemCliente mc = new MensagemCliente(id, jogadaEscolhida, naipeCartaEscolhida,
+							valorCartaEscolhida);
+					mc.envia(outToServer);
+				} else
+					System.out.println("jogador " + (idJogador + 1) + " ainda tem que jogar a carta");
+				break;
+			case 11:
+				//servidor disse que jogo acabou
+				fim = true;
+				break;
+			}
+
+		} while (!fim);
 
 		teclado.close();
 		outToServer.close();
 		inFromServer.close();
 		clientSocket.close();
-	}
-
-	protected static void turnoRodada(Scanner teclado, DataOutputStream outToServer, BufferedReader inFromServer,
-			List<Carta> mao, List<Carta> mesa, int i) throws IOException {
-		if (id == i) {
-			System.out.println("Escolha carta pelo ï¿½ndice");
-			printaCartas(mao, "mao");
-			for (int j = 0; j < mao.size(); j++) {
-				System.out.print("carta" + (j + 1) + " ");
-			}
-			System.out.println();
-			int ind = teclado.nextInt();
-			System.out.println("Para cima? (s/n)");
-			char cima = teclado.next().charAt(0);
-			Carta cartaenviada = enviaCarta(mao, ind - 1, cima, outToServer);
-			mesa.add(cartaenviada);
-			printaCartas(mao, "mao");
-		} else {
-			mesa.add(recebeCarta(inFromServer));
-		}
-		printaCartas(mesa, "mesa");
-	}
-
-	private static Carta enviaCarta(List<Carta> mao, int ind, char cima, DataOutputStream outToServer)
-			throws IOException {
-		outToServer.write(mao.get(ind).getNaipe());
-		outToServer.write(mao.get(ind).getValor());
-		Carta carta = mao.remove(ind);
-		if (cima == 's') {
-			outToServer.write(1);
-			carta.praCima();
-		} else {
-			carta.praBaixo();
-			outToServer.write(0);
-		}
-		return carta;
-	}
-
-	private static Carta recebeCarta(BufferedReader inFromServer) throws IOException {
-		int naipe = inFromServer.read();
-		int valorCarta = inFromServer.read();
-		Carta carta = new Carta(naipe, valorCarta);
-		return carta;
-	}
-
-	private static void recebeCarta(List<Carta> mao, BufferedReader inFromServer, int i)
-			throws NumberFormatException, IOException {
-		for (int j = 0; j < 3; j++) {
-			recebeCarta(mao, inFromServer);
-		}
-
-	}
-
-	private static void recebeCarta(List<Carta> mao, BufferedReader inFromServer)
-			throws NumberFormatException, IOException {
-		int naipe = inFromServer.read();
-		int valorCarta = inFromServer.read();
-		Carta carta = new Carta(naipe, valorCarta);
-		carta.setIdJogador(id);
-		mao.add(carta);
 	}
 
 	private static void printaCartas(List<Carta> cartas, String string) {
@@ -132,32 +252,23 @@ public class TCPCliente {
 		System.out.println();
 	}
 
-	private static void recebeFim(BufferedReader inFromServer, Placar placar) throws IOException {
-		int pontuacao02 = inFromServer.read();
-		int pontuacao13 = inFromServer.read();
-		if (pontuacao02 >= 12 || pontuacao13 >= 12) {
-			placar.fimDeJogo = true;
-		}
-		placar.time1 = pontuacao02;
-		placar.time2 = pontuacao13;
-		System.out.println("Placar Jogo");
-		if ((id == 0 || id == 2)&& (placar.time1 > placar.time2)) {
-			System.out.println("seu time: "+placar.time1);
-			System.out.println("pontos time 0 e 2: "+placar.time1);
-			placar.vencedor = true;
-		} else {
-			System.out.println("seu time: "+placar.time2);
-			System.out.println("pontos time 1 e 3: "+placar.time2);
-			placar.vencedor = true;
-		}
+	// recebe msg do servidor segundo o protocolo de msg definindo em MensagemServidor.java
+	private static void recebeMsg() throws IOException {
+		idJogador = inFromServer.read();
+		jogada = inFromServer.read();
+		time1PontosRodada = inFromServer.read();
+		time2PontosRodada = inFromServer.read();
+		valorMao = inFromServer.read();
+		cartaPraBaixo = inFromServer.read();
+		naipeCarta = inFromServer.read();
+		valorCarta = inFromServer.read();
+		time1PontosTotal = inFromServer.read();
+		time2PontosTotal = inFromServer.read();
+
+		//print teste
+		//MensagemServidor ms = new MensagemServidor(idJogador, jogada, time1PontosRodada, time2PontosRodada, valorMao,
+		//		cartaPraBaixo, naipeCarta, valorCarta, time1PontosTotal, time2PontosTotal);
+		// System.out.println(ms);
 	}
-	
-	private static void recebePlacarMao(BufferedReader inFromServer, PlacarMao placarMao) throws IOException {
-		placarMao.time1 += inFromServer.read();
-		placarMao.time2 += inFromServer.read();
-		placarMao.continua = inFromServer.read();
-		System.out.println("Placar Mao");
-		System.out.println("pontos time 0 e 2: "+placarMao.time1);
-		System.out.println("pontos time 1 e 3: "+placarMao.time2);
-	}
+
 }

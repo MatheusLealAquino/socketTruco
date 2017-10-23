@@ -17,7 +17,7 @@ public class Baralho {
 	public Carta tiraCarta(){
 		int index = (int)Math.floor(Math.random()*cartas.size());
 		Carta c = cartas.remove(index);
-		System.out.println(c);
+		System.out.println("Carta retirada do Baralho " + c);
 		return c;
 	}
 	

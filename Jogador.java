@@ -6,10 +6,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class Jogador {
-	public DataOutputStream outToClient;
-	public BufferedReader inFromClient;
-	public List<Carta> mao = new ArrayList<Carta>();
-	public Socket socket;
+	private int id;
+	private DataOutputStream outToClient;
+	private BufferedReader inFromClient;
+	private Socket socket;
 
 	public Jogador(Socket socket) {
 		this.socket = socket;
@@ -23,18 +23,23 @@ public class Jogador {
 		this.inFromClient = inFromClient;
 	}
 
-	public void recebeCarta(Carta c) {
-		mao.add(c);
+	public int getId() {
+		return id;
+	}
+	
+	public BufferedReader getInFromClient() {
+		return inFromClient;
 	}
 
-	public Carta joga(int naipe, int valor) {
-		for (Carta c : mao) {
-			if (c.getNaipe() == naipe && c.getValor() == valor) {
-				mao.remove(c);
-				return c;
-			}
-		}
-		return null;
+	public DataOutputStream getOutToClient() {
+		return outToClient;
+	}
+	
+	public Socket getSocket() {
+		return socket;
 	}
 
+	public void setId(int id) {
+		this.id = id;
+	}
 }

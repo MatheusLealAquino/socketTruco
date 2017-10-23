@@ -14,5 +14,4 @@ public class ValorCarta {
 	public static final int AS = 10;
 	public static final int DOIS = 11;
 	public static final int TRES = 12;
-	public static final int PRA_BAIXO = 13;
 }

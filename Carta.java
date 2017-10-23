@@ -1,32 +1,34 @@
-import java.util.Comparator;
+import java.io.Serializable;
 
-public class Carta {
+
+public class Carta{
 	private int idJogador;
 	private int naipe;
 	private int valor;
 	private boolean cima = true;
-
-	public Carta(int naipe, int valor) {
+	
+	public Carta(int naipe, int valor){
 		this.naipe = naipe;
 		this.valor = valor;
 	}
-
+	
 	public void setIdJogador(int idJogador) {
 		this.idJogador = idJogador;
 	}
-
+	
 	public int getIdJogador() {
 		return idJogador;
 	}
-
-	public void praBaixo() {
+	
+	public void praBaixo(){
 		this.cima = false;
 	}
+	
 
 	public void praCima() {
 		this.cima = true;
 	}
-
+	
 	public boolean isPraCima() {
 		return cima;
 	}
@@ -41,8 +43,6 @@ public class Carta {
 			return Naipe.COPAS;
 		case Naipe.ESPADAS:
 			return Naipe.ESPADAS;
-		case Naipe.PRA_BAIXO:
-			return Naipe.PRA_BAIXO;
 		default:
 			return -1;
 		}
@@ -76,8 +76,6 @@ public class Carta {
 			return ValorCarta.DAMA;
 		case ValorCarta.REI:
 			return ValorCarta.REI;
-		case ValorCarta.PRA_BAIXO:
-			return ValorCarta.PRA_BAIXO;
 		default:
 			return -1;
 		}
@@ -87,13 +85,13 @@ public class Carta {
 		StringBuffer sb = new StringBuffer();
 		switch (this.valor) {
 		case ValorCarta.AS:
-			sb.append("√Ås");
+			sb.append("·s");
 			break;
 		case ValorCarta.DOIS:
 			sb.append("dois");
 			break;
 		case ValorCarta.TRES:
-			sb.append("tr√™s");
+			sb.append("trÍs");
 			break;
 		case ValorCarta.QUATRO:
 			sb.append("quatro");
@@ -125,9 +123,6 @@ public class Carta {
 		case ValorCarta.REI:
 			sb.append("rei");
 			break;
-		case ValorCarta.PRA_BAIXO:
-			sb.append("carta");
-			break;
 		default:
 			sb.append("nada");
 			break;
@@ -145,19 +140,17 @@ public class Carta {
 		case Naipe.ESPADAS:
 			sb.append(" de espadas");
 			break;
-		case Naipe.PRA_BAIXO:
-			sb.append(" pra baixo");
-			break;
 		default:
 			sb.append(" de nada");
 			break;
 		}
-
-		if (!isPraCima()) {
+		
+		if(!isPraCima()){
 			sb.append("(virado pra baixo)");
 		}
-
+		
 		return sb.toString();
 	}
+
 
 }
