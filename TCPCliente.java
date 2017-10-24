@@ -102,7 +102,7 @@ public class TCPCliente {
 						naipeCartaEscolhida = cartaJogada.getNaipe();
 						valorCartaEscolhida = cartaJogada.getValor();
 					}
-					//envia mensagem cleinte
+					//envia mensagem cliente
 					(new MensagemCliente(id, jogadaEscolhida, naipeCartaEscolhida,
 							valorCartaEscolhida)).envia(outToServer);
 				} else
@@ -188,7 +188,7 @@ public class TCPCliente {
 				mesa = new ArrayList<>();
 				System.out.println("fim da rodada");
 				System.out.println("Placar rodada");
-				System.out.println("TIME 1 -" + time1PontosRodada + " X " + time2PontosRodada + "- TIME 2");
+				System.out.println("TIME 1 - " + time1PontosRodada + " X " + time2PontosRodada + " - TIME 2");
 				break;
 			case 9:
 				// mao encerrada
@@ -196,7 +196,7 @@ public class TCPCliente {
 				System.out.println("fim da mão");
 				System.out.println("==========================");
 				System.out.println("PLACAR TOTAL");
-				System.out.println("TIME 1 -" + time1PontosTotal + " X " + time2PontosTotal + "- TIME 2");
+				System.out.println("TIME 1 - " + time1PontosTotal + " X " + time2PontosTotal + " - TIME 2");
 				break;
 			case 10:
 				// vez de jogar carta após pedir truco

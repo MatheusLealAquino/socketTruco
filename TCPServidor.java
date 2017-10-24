@@ -111,10 +111,11 @@ public class TCPServidor {
 						else
 							timePontosTotal[1] += valorMao;
 					} else {
-						//caso em que a segunda rodada foi empate, mas a primeira e a terceira não
+						//caso em que não foram três empates o primeiro time sempre ganha
 						if (timePontosRodada[0] == 1) {
 							timePontosRodada[vencedoresRodada[0]] += valorMao;
 						}
+						
 					}
 				}
 			}
@@ -171,6 +172,7 @@ public class TCPServidor {
 		empates[n] = true;
 	}
 
+	//função usada para tratar a vez de cada jogador na rodada
 	private static void rodada(Jogador[] jogadores, int j) throws IOException {
 		(new MensagemServidor(j, 0, timePontosRodada[0], timePontosRodada[1], valorMao, 0, 0, 0, timePontosTotal[0],
 				timePontosTotal[1])).envia(jogadores);
@@ -206,6 +208,7 @@ public class TCPServidor {
 
 	}
 
+	//função para depois de um pedido de truco ser usada para requisitar carta do jogador
 	private static void rodadaPosTruco(Jogador[] jogadores, int j) throws IOException {
 		(new MensagemServidor(j, 10, timePontosRodada[0], timePontosRodada[1], valorMao, 0, 0, 0, timePontosTotal[0],
 				timePontosTotal[1])).envia(jogadores);
@@ -230,6 +233,7 @@ public class TCPServidor {
 		}
 	}
 
+	//trata os pedidos de truco
 	protected static void trataPedidoTruco(Jogador[] jogadores, int j) throws IOException {
 		(new MensagemServidor(j, 2, timePontosRodada[0], timePontosRodada[1], valorMao, 0, 0, 0, timePontosTotal[0],
 				timePontosTotal[1])).envia(jogadores);
@@ -313,6 +317,7 @@ public class TCPServidor {
 	//funções que criam uma instância de jogador e o conectam
 	private static void conecta(ServerSocket servidor, Jogador[] jogadores) throws IOException {
 		for (int i = 0; i < jogadores.length; i++) {
+			//for para enviar quantos jogares faltam
 			for (int j = 0; j < i; j++) {
 				jogadores[j].getOutToClient().writeBytes("faltam " + (4-i) + " jogadores\n");
 			}

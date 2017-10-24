@@ -37,6 +37,7 @@ public class MensagemServidor {
 	}
 	
 	
+	//construtor para mensagens que não precisam de parametros que já iniciamos com 0
 	public MensagemServidor(int jogada, int time1PontosRodada, int time2PontosRodada, int valorMao,
 			int time1PontosTotal, int time2PontosTotal) {
 		this.idJogador = 0;

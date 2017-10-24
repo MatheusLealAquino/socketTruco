@@ -1,6 +1,3 @@
-import java.io.Serializable;
-
-
 public class Carta{
 	private int idJogador;
 	private int naipe;

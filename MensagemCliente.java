@@ -17,6 +17,7 @@ public class MensagemCliente {
 		this.valorCarta = valorCarta;
 	}
 	
+	//construtor para jogadas que não precisam preencher naipe e valor da carta
 	public MensagemCliente(int idJogador, int jogada){
 		this.idJogador = idJogador;
 		this.jogada = jogada;
