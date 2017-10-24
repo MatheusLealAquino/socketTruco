@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Scanner;
 
 public class TCPServidor {
 	private static Baralho baralho;
@@ -28,7 +29,9 @@ public class TCPServidor {
 
 	public static void main(String[] args) throws IOException, InterruptedException {
 
-		int porta = Porta.NUM;
+		Scanner scan = new Scanner(System.in);
+		System.out.println("Escolha porta para abrir o servidor");
+		int porta = scan.nextInt();
 		ServerSocket servidor = new ServerSocket(porta);
 		System.out.println("Porta " + porta + " aberta!");
 
@@ -125,6 +128,7 @@ public class TCPServidor {
 				timePontosTotal[1])).envia(jogadores);
 		fecha(servidor, jogadores);
 		servidor.close();
+		scan.close();
 	}
 
 	//função que auxiliada ao sort de cartas trata os casos possíveis para ver qual carta venceu a rodada
@@ -309,9 +313,15 @@ public class TCPServidor {
 	//funções que criam uma instância de jogador e o conectam
 	private static void conecta(ServerSocket servidor, Jogador[] jogadores) throws IOException {
 		for (int i = 0; i < jogadores.length; i++) {
+			for (int j = 0; j < i; j++) {
+				jogadores[j].getOutToClient().writeBytes("faltam " + (4-i) + " jogadores\n");
+			}
 			jogadores[i] = new Jogador(servidor.accept());
 			jogadores[i].setId(i);
 			conecta(servidor, jogadores[i]);
+		}
+		for (int j = 0; j < 4; j++) {
+			jogadores[j].getOutToClient().writeBytes("todos jogadores entraram\n");
 		}
 	}
 	

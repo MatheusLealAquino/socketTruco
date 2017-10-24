@@ -9,8 +9,7 @@ import java.util.List;
 import java.util.Scanner;
 
 public class TCPCliente {
-
-	private static int porta = Porta.NUM;
+	
 	private static int id = 5;
 	private static int idSeuTime;
 	private static Scanner teclado = new Scanner(System.in);
@@ -47,19 +46,24 @@ public class TCPCliente {
 
 	public static void main(String[] args) throws UnknownHostException, IOException {
 		
-		//System.out.println("Entrar com ip para conexão");
-		//String ip = teclado.next();
-		//System.out.println("Entrar com porta para conexão");
-		//String porta = teclado.next();
+		System.out.println("Entrar com ip para conexão");
+		String ip = teclado.next();
+		System.out.println("Entrar com porta para conexão");
+		String porta = teclado.next();
 		
-		Socket clientSocket = new Socket("127.0.0.1", porta);
+		Socket clientSocket = new Socket(ip, Integer.valueOf(porta));
 		outToServer = new DataOutputStream(clientSocket.getOutputStream());
 		inFromServer = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
 
 		id = inFromServer.read();
-		System.out.println("Seu id: " + (id + 1));
 		idSeuTime = id % 2;
+		System.out.println("Seu id: " + (id + 1));
 		System.out.println("Você é do time " + (idSeuTime + 1));
+		
+		for (int i = 0; i < 4-id; i++) {
+			System.out.println(inFromServer.readLine());
+		}
+		
 		List<Carta> mao = new ArrayList<>();
 		List<Carta> mesa = new ArrayList<>();
 
